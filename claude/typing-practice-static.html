@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Practice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        #word-display {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .letter {
+            margin: 0 2px;
+            transition: color 0.3s ease;
+        }
+        .letter.typed {
+            color: #a0a0a0;
+        }
+        #start-btn, #restart-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        #start-btn:hover, #restart-btn:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Typing Practice</h1>
+        
+        <div id="word-display"></div>
+        
+        <div id="status">
+            <p id="words-completed">Words Completed: 0 / 10</p>
+        </div>
+        
+        <button id="start-btn">Start Typing Test</button>
+        
+        <div id="result" style="display: none;">
+            <h2>Test Complete!</h2>
+            <p id="time-taken"></p>
+            <button id="restart-btn" style="display: none;">Restart Test</button>
+        </div>
+    </div>
+
+    <script>
+        // Word list with varied capitalization
+        const WORD_LIST = [
+            'hello', 'World', 'typing', 'Practice', 'speed', 
+            'Challenge', 'react', 'JavaScript', 'coding', 'Skills'
+        ];
+
+        // Game state variables
+        let currentWordIndex = 0;
+        let currentWord = '';
+        let typedLetters = [];
+        let startTime = null;
+        let elapsedTime = 0;
+        let isGameActive = false;
+        let isGameComplete = false;
+        let wordCount = 0;
+
+        // DOM elements
+        const wordDisplay = document.getElementById('word-display');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const wordsCompletedEl = document.getElementById('words-completed');
+        const resultEl = document.getElementById('result');
+        const timeTakenEl = document.getElementById('time-taken');
+
+        // Reset the game
+        function resetGame() {
+            currentWordIndex = 0;
+            currentWord = WORD_LIST[0];
+            typedLetters = [];
+            startTime = null;
+            elapsedTime = 0;
+            isGameActive = false;
+            isGameComplete = false;
+            wordCount = 0;
+
+            // Reset display
+            wordDisplay.innerHTML = '';
+            wordsCompletedEl.textContent = `Words Completed: 0 / ${WORD_LIST.length}`;
+            resultEl.style.display = 'none';
+            startBtn.style.display = 'block';
+            restartBtn.style.display = 'none';
+        }
+
+        // Start the game
+        function startGame() {
+            resetGame();
+            currentWord = WORD_LIST[0];
+            isGameActive = true;
+            startBtn.style.display = 'none';
+
+            // Display initial word
+            displayWord();
+
+            // Focus to capture keystrokes
+            window.focus();
+        }
+
+        // Display current word
+        function displayWord() {
+            wordDisplay.innerHTML = currentWord.split('').map(letter => 
+                `<span class="letter">${letter}</span>`
+            ).join('');
+        }
+
+        // Handle keypress
+        function handleKeyPress(e) {
+            // Prevent default to stop text selection or scrolling
+            e.preventDefault();
+
+            // Ignore if game is not active
+            if (!isGameActive || isGameComplete) return;
+
+            // Start timer on first keystroke
+            if (typedLetters.length === 0 && !startTime) {
+                startTime = Date.now();
+            }
+
+            // Get the next expected letter
+            const expectedLetter = currentWord[typedLetters.length];
+
+            // Check if pressed key matches the expected letter
+            if (e.key === expectedLetter) {
+                typedLetters.push(e.key);
+
+                // Update letter display
+                const letterEls = wordDisplay.querySelectorAll('.letter');
+                letterEls[typedLetters.length - 1].classList.add('typed');
+
+                // Check if word is complete
+                if (typedLetters.length === currentWord.length) {
+                    // Move to next word
+                    currentWordIndex++;
+                    wordCount++;
+                    wordsCompletedEl.textContent = `Words Completed: ${wordCount} / ${WORD_LIST.length}`;
+
+                    // Check if game is complete
+                    if (currentWordIndex >= WORD_LIST.length) {
+                        endGame();
+                    } else {
+                        // Prepare next word
+                        currentWord = WORD_LIST[currentWordIndex];
+                        typedLetters = [];
+                        displayWord();
+                    }
+                }
+            }
+        }
+
+        // End the game
+        function endGame() {
+            isGameActive = false;
+            isGameComplete = true;
+
+            // Calculate final time
+            const endTime = Date.now();
+            elapsedTime = (endTime - startTime) / 1000;
+
+            // Display results
+            timeTakenEl.textContent = `Time Taken: ${elapsedTime.toFixed(2)} seconds`;
+            resultEl.style.display = 'block';
+            restartBtn.style.display = 'block';
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        window.addEventListener('keypress', handleKeyPress);
+
+        // Initial setup
+        resetGame();
+    </script>
+</body>
+</html>

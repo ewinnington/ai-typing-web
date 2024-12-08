@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Touch Typing Speed Test</title>
+<style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  h1, h2 {
+    text-align: center;
+  }
+  #word-container {
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    margin: 40px 0;
+  }
+  #controls {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  #restart-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+  }
+  #results {
+    text-align: center;
+    margin-top: 20px;
+    display: none;
+  }
+  .typed {
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+
+<h1>Touch Typing Speed Drill</h1>
+<div id="controls">
+  <button id="restart-btn">Start</button>
+</div>
+
+<div id="word-container"></div>
+
+<div id="results">
+  <h2>Results</h2>
+  <div id="time-result"></div>
+</div>
+
+<script>
+// Sample word list of about 100 words (mixed case, some randomness):
+const wordList = [
+  "Apple", "bottle", "keyboard", "JuMp", "Cat", "development", "Typewriter", "Zebra",
+  "qUick", "FoX", "fingers", "communication", "ReD", "trust", "mountain", "chocolate",
+  "Milk", "rainbow", "Computer", "grass", "Peninsula", "honesty", "Jar", "sleep",
+  "Plastic", "dream", "Station", "Road", "Juncture", "violin", "pUzzLe", "ChAir",
+  "Table", "Lighting", "Phonetics", "Wizard", "yacht", "oxygen", "bubble", "Measurement",
+  "Glyph", "attic", "dawn", "Knight", "Hour", "Crown", "Variable", "Index", "Queue",
+  "Rope", "Saddle", "Triangle", "Hexagon", "Quilt", "Under", "Energy", "Flight",
+  "glow", "transfer", "HaBit", "Jockey", "knife", "LaMp", "momentum", "narrow", 
+  "Orange", "Puzzle", "Queueing", "Rocket", "String", "Theory", "Unicorn", "Vortex",
+  "Whisper", "XyloPhone", "yEllow", "Zipper", "Ambitious", "Bacon", "CastLe", "Dolphin",
+  "Elephant", "fossil", "Giggle", "Horizon", "Imply", "Jungle", "Kitchen", "Launch",
+  "Mirror", "Neutron", "Opera", "Pirate", "Quiver", "Rust", "SynTax", "Transit", "Urban",
+  "Vast", "Wind", "Xenon", "Yield", "Zest"
+];
+
+// Number of words in one round
+const WORD_COUNT = 10;
+
+let currentWord = "";
+let currentWordIndex = 0;
+let charPosition = 0;
+let wordsCompleted = 0;
+let startTime = null;
+let endTime = null;
+let inProgress = false;
+
+// Analytics Data
+let keyPressTimestamps = []; // store timestamp of each correct key press
+// We'll compute average time between key presses at the end.
+
+const wordContainer = document.getElementById("word-container");
+const restartBtn = document.getElementById("restart-btn");
+const resultsDiv = document.getElementById("results");
+const timeResult = document.getElementById("time-result");
+
+function startRound() {
+  // Reset everything
+  wordsCompleted = 0;
+  charPosition = 0;
+  startTime = null;
+  endTime = null;
+  inProgress = true;
+  resultsDiv.style.display = "none";
+  keyPressTimestamps = [];
+
+  // Pick random words:
+  selectedWords = [];
+  for (let i = 0; i < WORD_COUNT; i++) {
+    const randIndex = Math.floor(Math.random() * wordList.length);
+    selectedWords.push(wordList[randIndex]);
+  }
+  
+  currentWordIndex = 0;
+  currentWord = selectedWords[currentWordIndex];
+  displayWord(currentWord, charPosition);
+}
+
+function displayWord(word, typedCharsCount) {
+  // Display the word with typed chars in light grey
+  let html = "";
+  for (let i = 0; i < word.length; i++) {
+    if (i < typedCharsCount) {
+      html += `<span class="typed">${word[i]}</span>`;
+    } else {
+      html += `<span>${word[i]}</span>`;
+    }
+  }
+  wordContainer.innerHTML = html;
+}
+
+function handleKey(e) {
+  if (!inProgress) return;
+  const key = e.key;
+
+  // If not started (no first letter typed yet), start timer on the first correct stroke
+  if (startTime === null && key === currentWord.charAt(charPosition)) {
+    startTime = performance.now();
+    keyPressTimestamps.push(startTime);
+  }
+
+  if (key.length === 1) { // Only consider single character keys (ignore Tab, Enter, etc.)
+    const expectedChar = currentWord.charAt(charPosition);
+    if (key === expectedChar) {
+      // correct char
+      const now = performance.now();
+      if (keyPressTimestamps.length > 0 && keyPressTimestamps[keyPressTimestamps.length - 1] !== now) {
+        keyPressTimestamps.push(now);
+      }
+      charPosition++;
+      displayWord(currentWord, charPosition);
+      if (charPosition === currentWord.length) {
+        // Word completed
+        wordsCompleted++;
+        if (wordsCompleted < WORD_COUNT) {
+          // Move to next word
+          currentWordIndex++;
+          currentWord = selectedWords[currentWordIndex];
+          charPosition = 0;
+          displayWord(currentWord, charPosition);
+        } else {
+          // All words completed
+          endTime = performance.now();
+          inProgress = false;
+          showResults();
+        }
+      }
+    } else {
+      // Wrong char: ignored, do nothing
+    }
+  }
+}
+
+function showResults() {
+  const totalTime = (endTime - startTime) / 1000; // in seconds
+  timeResult.textContent = `You completed ${WORD_COUNT} words in ${totalTime.toFixed(2)} seconds.`;
+  resultsDiv.style.display = "block";
+
+  // Analytics
+  // Compute average time between correct key presses:
+  let intervals = [];
+  for (let i = 1; i < keyPressTimestamps.length; i++) {
+    intervals.push(keyPressTimestamps[i] - keyPressTimestamps[i - 1]);
+  }
+  
+  let avgInterval = 0;
+  if (intervals.length > 0) {
+    avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  }
+
+  // Print analytics to console
+  console.log("Analytics:");
+  console.log("Total keys pressed (correct):", keyPressTimestamps.length);
+  console.log("Average time between key presses (ms):", avgInterval.toFixed(2));
+  console.log("Total time (ms):", (endTime - startTime).toFixed(2));
+
+  // Allow restart
+}
+
+restartBtn.addEventListener("click", startRound);
+window.addEventListener("keydown", handleKey);
+
+</script>
+</body>
+</html>

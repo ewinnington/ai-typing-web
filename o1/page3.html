@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Full Text Typing Challenge</title>
+<style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  h1, h2 {
+    text-align: center;
+  }
+  #text-container {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 40px 0;
+    white-space: pre-wrap;
+  }
+  #controls {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  #start-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+  }
+  #results {
+    text-align: center;
+    margin-top: 20px;
+    display: none;
+  }
+  .correct {
+    color: #aaa;
+  }
+  .error {
+    color: red;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<h1>Full Text Typing Challenge</h1>
+<p style="text-align:center;">Type the following text as accurately as possible. Errors will be highlighted in red. Use backspace to correct mistakes if desired.</p>
+
+<div id="controls">
+  <button id="start-btn">Start</button>
+</div>
+
+<div id="text-container"></div>
+
+<div id="results">
+  <h2>Results</h2>
+  <div id="result-stats"></div>
+</div>
+
+<script>
+// The text to type
+const textToType = `Programming can be a joyful and creative pursuit. With just a few lines of code in Python, C++, or JavaScript, you can bring new ideas to life. The thrill of debugging, refining logic, and finally seeing your work run smoothly is unmatched. Early video games like Asteroids paved the way, showing how simple graphics and clever code could spark curiosity and fun. Today, we can build interactive art, solve complex problems, and share our creations with the world.`;
+
+// Variables
+let inProgress = false;
+let startTime = null;
+let endTime = null;
+let typedChars = []; // store all typed characters
+let correctKeyStrokes = 0;
+let wrongKeyStrokes = 0;
+let keyPressTimestamps = [];
+
+const textContainer = document.getElementById("text-container");
+const startBtn = document.getElementById("start-btn");
+const resultsDiv = document.getElementById("results");
+const resultStats = document.getElementById("result-stats");
+
+function startChallenge() {
+  inProgress = true;
+  startTime = null;
+  endTime = null;
+  typedChars = [];
+  correctKeyStrokes = 0;
+  wrongKeyStrokes = 0;
+  keyPressTimestamps = [];
+  resultsDiv.style.display = "none";
+
+  // Disable the start button and remove focus so space won't click it again
+  startBtn.disabled = true;
+  startBtn.blur();
+
+  renderText();
+}
+
+function renderText() {
+  let html = "";
+  for (let i = 0; i < textToType.length; i++) {
+    const expectedChar = textToType[i];
+    const typedChar = typedChars[i];
+
+    if (typedChar === undefined) {
+      // Not typed yet
+      html += `<span>${expectedChar}</span>`;
+    } else if (typedChar === expectedChar) {
+      // Correct
+      html += `<span class="correct">${expectedChar}</span>`;
+    } else {
+      // Error: show the expected char in red, not the wrong typed char
+      html += `<span class="error">${expectedChar}</span>`;
+    }
+  }
+  textContainer.innerHTML = html;
+}
+
+function handleKey(e) {
+  if (!inProgress) return;
+
+  // Handle backspace
+  if (e.key === "Backspace") {
+    if (typedChars.length > 0) {
+      typedChars.pop();
+      renderText();
+    }
+    return;
+  }
+
+  // Ignore keys that are not single characters or enter/space
+  // We'll allow spaces, letters, punctuation. Enter -> newline.
+  if (e.key.length !== 1 && e.key !== "Enter") return;
+
+  // Start timing on first keystroke
+  if (startTime === null) {
+    startTime = performance.now();
+    keyPressTimestamps.push(startTime);
+  }
+
+  let charTyped = e.key;
+  if (e.key === "Enter") {
+    charTyped = "\n";
+  }
+
+  typedChars.push(charTyped);
+
+  const currentIndex = typedChars.length - 1;
+  const expectedChar = textToType[currentIndex];
+  const now = performance.now();
+
+  if (expectedChar && charTyped === expectedChar) {
+    correctKeyStrokes++;
+    keyPressTimestamps.push(now);
+  } else {
+    // Wrong char typed
+    wrongKeyStrokes++;
+  }
+
+  renderText();
+
+  // Check if done
+  if (typedChars.length === textToType.length) {
+    endTime = performance.now();
+    inProgress = false;
+    showResults();
+  }
+}
+
+function showResults() {
+  const totalTimeMs = endTime - startTime;
+  const totalTimeMin = totalTimeMs / 1000 / 60;
+  const totalKeystrokes = correctKeyStrokes + wrongKeyStrokes;
+  const accuracy = totalKeystrokes > 0 ? (correctKeyStrokes / totalKeystrokes) * 100 : 100;
+  
+  // WPM Calculation: (number_of_characters / 5) / time_in_minutes
+  const wpm = ((totalKeystrokes / 5) / totalTimeMin);
+
+  resultStats.innerHTML = `
+    <p>Total Time: ${(totalTimeMs / 1000).toFixed(2)} seconds</p>
+    <p>WPM: ${wpm.toFixed(2)}</p>
+    <p>Accuracy: ${accuracy.toFixed(2)}%</p>
+    <p>Correct Keystrokes: ${correctKeyStrokes}, Wrong Keystrokes: ${wrongKeyStrokes}</p>
+  `;
+  resultsDiv.style.display = "block";
+
+  // Compute average time between correct key presses
+  let intervals = [];
+  for (let i = 1; i < keyPressTimestamps.length; i++) {
+    intervals.push(keyPressTimestamps[i] - keyPressTimestamps[i - 1]);
+  }
+
+  let avgInterval = 0;
+  if (intervals.length > 0) {
+    avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  }
+
+  // Log analytics
+  console.log("Analytics:");
+  console.log("Total correct keystrokes:", correctKeyStrokes);
+  console.log("Total wrong keystrokes:", wrongKeyStrokes);
+  console.log("Accuracy (%):", accuracy.toFixed(2));
+  console.log("WPM:", wpm.toFixed(2));
+  console.log("Average time between correct key presses (ms):", avgInterval.toFixed(2));
+  console.log("Total time (ms):", totalTimeMs.toFixed(2));
+
+  // Re-enable start button for new attempts if needed
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener("click", startChallenge);
+window.addEventListener("keydown", handleKey);
+
+</script>
+</body>
+</html>

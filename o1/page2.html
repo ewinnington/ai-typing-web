@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Accuracy Drills - Touch Typing</title>
+<style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  h1, h2 {
+    text-align: center;
+  }
+  #sequence-container {
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    margin: 40px 0;
+  }
+  #controls {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  #start-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+  }
+  #results {
+    text-align: center;
+    margin-top: 20px;
+    display: none;
+  }
+  .correct {
+    color: #aaa;
+  }
+  .error {
+    color: red;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<h1>Accuracy Drills</h1>
+<p style="text-align:center;">Type the displayed sequence exactly. Mistakes must be corrected with backspace before continuing.</p>
+
+<div id="controls">
+  <button id="start-btn">Start</button>
+</div>
+
+<div id="sequence-container"></div>
+
+<div id="results">
+  <h2>Results</h2>
+  <div id="result-stats"></div>
+</div>
+
+<script>
+// Characters to use in sequences:
+const CHAR_POOL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const SEQUENCE_LENGTH_MIN = 3;
+const SEQUENCE_LENGTH_MAX = 7;
+const TOTAL_SEQUENCES = 10;
+
+let sequences = [];
+let currentSequence = "";
+let currentIndex = 0;
+let typedChars = []; // stores user-typed chars for the current sequence
+let sequenceCounter = 0;
+
+let inProgress = false;
+let startTime = null;
+let endTime = null;
+
+let correctKeyStrokes = 0;
+let wrongKeyStrokes = 0;
+let keyPressTimestamps = [];
+
+const sequenceContainer = document.getElementById("sequence-container");
+const startBtn = document.getElementById("start-btn");
+const resultsDiv = document.getElementById("results");
+const resultStats = document.getElementById("result-stats");
+
+function generateSequences(count) {
+  const arr = [];
+  for (let i = 0; i < count; i++) {
+    const length = Math.floor(Math.random() * (SEQUENCE_LENGTH_MAX - SEQUENCE_LENGTH_MIN + 1)) + SEQUENCE_LENGTH_MIN;
+    let seq = "";
+    for (let j = 0; j < length; j++) {
+      const randIndex = Math.floor(Math.random() * CHAR_POOL.length);
+      seq += CHAR_POOL[randIndex];
+    }
+    arr.push(seq);
+  }
+  return arr;
+}
+
+function startDrill() {
+  console.log("startDrill() called");
+  inProgress = true;
+  sequences = generateSequences(TOTAL_SEQUENCES);
+  console.log("Generated sequences:", sequences);
+
+  sequenceCounter = 0;
+  typedChars = [];
+  correctKeyStrokes = 0;
+  wrongKeyStrokes = 0;
+  keyPressTimestamps = [];
+  resultsDiv.style.display = "none";
+  startTime = null;
+  endTime = null;
+  currentSequence = sequences[sequenceCounter];
+  renderSequence();
+}
+
+function renderSequence() {
+  console.log("renderSequence() called with currentSequence:", currentSequence);
+  let html = "";
+  for (let i = 0; i < currentSequence.length; i++) {
+    const expectedChar = currentSequence[i];
+    const typedChar = typedChars[i];
+    if (typedChar === undefined) {
+      html += `<span>${expectedChar}</span>`;
+    } else if (typedChar === expectedChar) {
+      html += `<span class="correct">${typedChar}</span>`;
+    } else {
+      html += `<span class="error">${typedChar}</span>`;
+    }
+  }
+  sequenceContainer.innerHTML = html;
+}
+
+function handleKey(e) {
+  if (!inProgress) return;
+  if (!currentSequence) return;
+
+  // Start timing on first correct keypress
+  if (startTime === null && e.key.length === 1) {
+    startTime = performance.now();
+    keyPressTimestamps.push(startTime);
+  }
+
+  if (e.key === "Backspace") {
+    if (typedChars.length > 0) {
+      typedChars.pop();
+      renderSequence();
+    }
+    return;
+  }
+
+  // Ignore keys that are not single characters
+  if (e.key.length !== 1) return;
+
+  const currentPos = typedChars.length;
+  const expectedChar = currentSequence[currentPos];
+  typedChars.push(e.key);
+
+  const now = performance.now();
+
+  if (e.key === expectedChar) {
+    correctKeyStrokes++;
+    keyPressTimestamps.push(now);
+
+    if (typedChars.length === currentSequence.length) {
+      // Move to next sequence if this one is done
+      sequenceCounter++;
+      if (sequenceCounter < TOTAL_SEQUENCES) {
+        currentSequence = sequences[sequenceCounter];
+        typedChars = [];
+        renderSequence();
+      } else {
+        // All sequences completed
+        endTime = performance.now();
+        inProgress = false;
+        showResults();
+      }
+    }
+  } else {
+    // Wrong char
+    wrongKeyStrokes++;
+  }
+
+  renderSequence();
+}
+
+function showResults() {
+  const totalTime = (endTime - startTime) / 1000;
+  const totalTyped = correctKeyStrokes + wrongKeyStrokes;
+  const accuracy = totalTyped > 0 ? (correctKeyStrokes / totalTyped) * 100 : 100;
+
+  resultStats.innerHTML = `
+    <p>Completed ${TOTAL_SEQUENCES} sequences in ${totalTime.toFixed(2)} seconds.</p>
+    <p>Accuracy: ${accuracy.toFixed(2)}%</p>
+    <p>Correct Keystrokes: ${correctKeyStrokes}, Wrong Keystrokes: ${wrongKeyStrokes}</p>
+  `;
+  resultsDiv.style.display = "block";
+
+  // Compute average time between correct key presses
+  let intervals = [];
+  for (let i = 1; i < keyPressTimestamps.length; i++) {
+    intervals.push(keyPressTimestamps[i] - keyPressTimestamps[i - 1]);
+  }
+
+  let avgInterval = 0;
+  if (intervals.length > 0) {
+    avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  }
+
+  console.log("Analytics:");
+  console.log("Total correct keystrokes:", correctKeyStrokes);
+  console.log("Total wrong keystrokes:", wrongKeyStrokes);
+  console.log("Accuracy (%):", accuracy.toFixed(2));
+  console.log("Average time between correct key presses (ms):", avgInterval.toFixed(2));
+  console.log("Total time (ms):", (endTime - startTime).toFixed(2));
+}
+
+// Event Listeners
+startBtn.addEventListener("click", startDrill);
+window.addEventListener("keydown", handleKey);
+</script>
+</body>
+</html>
